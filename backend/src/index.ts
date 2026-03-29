@@ -1,15 +1,21 @@
-import 'dotenv/config' // ← carga el .env PRIMERO
+import 'dotenv/config'
 import express from 'express'
+import cors from 'cors'
 import { prisma } from './lib/prisma.js'
+import { propertiesController } from './modules/properties/properties.controller.js'
 
 const app = express()
+
+app.use(cors({ origin: 'http://localhost:3000' }))
 app.use(express.json())
 
-// ✅ ENDPOINT DE PRUEBA
 app.post('/api/users', (req, res) => {
   const user = req.body
   res.json({ message: 'User created', user })
 })
+
+// ✅ ENDPOINT de búsqueda de inmuebles
+app.get('/api/inmuebles', propertiesController.getAll)
 
 // ✅ ENDPOINT para verificar la conexión con la BD
 app.get('/api/health', async (_req, res) => {

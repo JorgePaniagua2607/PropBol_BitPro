@@ -1,18 +1,25 @@
 export interface Inmueble {
   id: number
   titulo: string
-  precio: number
-  superficie: number
-  ubicacion: string
-  habitaciones: number
-  banos: number
-  fechaPublicacion: string // YYYY-MM-DD
-  popularidad: number
+  precio: number | string
+  superficieM2?: number | null
+  ubicacion?: {
+    zona?: string
+    ciudad?: string
+    direccion?: string | null
+  } | null
+  nroCuartos?: number | null
+  nroBanos?: number | null
+  fechaPublicacion: string
+  popularidad?: number
+  estado?: string
+  tipoAccion?: string
+  categoria?: string | null
 }
 
 // ─── Tipos de Ordenamiento ────────────────────────────────────────────────────
 
-export type OrdenFecha = 'mas-recientes' | 'mas-populares'
+export type OrdenFecha = 'mas-recientes' | 'mas-populares' | 'mas-antiguos'
 export type OrdenDireccion = 'menor-a-mayor' | 'mayor-a-menor'
 
 export interface EstadoOrdenamiento {
@@ -25,6 +32,7 @@ export interface EstadoOrdenamiento {
 
 export const OPCIONES_FECHA: Array<{ value: OrdenFecha; label: string }> = [
   { value: 'mas-recientes', label: 'Más recientes' },
+  { value: 'mas-antiguos', label: 'Más antiguos' },
   { value: 'mas-populares', label: 'Más populares' }
 ]
 
