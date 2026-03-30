@@ -8,9 +8,12 @@ interface BannerData {
   titulo?: string
   subtitulo?: string
 }
-
+// Función para obtener los datos del banner desde la API tanto local como desplegada en develop
 const fetchBanners = async (): Promise<BannerData[]> => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    'https://prop-bol-backend.vercel.app' ||
+    'http://localhost:5000'
 
   try {
     const response = await fetch(`${apiUrl}/api/banners`, {

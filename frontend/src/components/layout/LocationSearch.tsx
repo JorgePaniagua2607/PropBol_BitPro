@@ -40,16 +40,22 @@ export function LocationSearch({ value, onChange }: LocationSearchProps) {
         return
       }
       setIsLoading(true)
+
+      // Configuración de la ruta del Backend Local y Deploy en develop
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL ||
+        'https://prop-bol-backend.vercel.app' ||
+        'http://localhost:5000'
+
       try {
-        const res = await fetch(
-          `http://localhost:5000/api/locations/search?q=${encodeURIComponent(value)}`
-        )
+        const res = await fetch(`${apiUrl}/api/locations/search?q=${encodeURIComponent(value)}`)
         if (res.ok) {
           const data = await res.json()
           setSuggestions(data)
           setIsOpen(true)
         }
-      } catch {
+      } catch (error) {
+        console.error('Error buscando ubicaciones:', error)
       } finally {
         setIsLoading(false)
       }
