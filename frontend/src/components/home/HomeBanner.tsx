@@ -1,27 +1,20 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 interface BannerProps {
-  url: string
-  title?: string
-  subtitle?: string
+  url: string;
+  title?: string;
+  subtitle?: string;
 }
 
 export const HomeBanner = ({ url, title, subtitle }: BannerProps) => {
   return (
-    /* h-[220px] -> Altura slim para móvil para ver el buscador rápido */
-    /* md:h-[60vh] -> Altura completa para escritorio */
-    <div className="relative w-full h-[220px] md:h-[60vh] bg-stone-200 flex items-center justify-center overflow-hidden">
-      
-      <Image 
-        src={url} 
-        alt="Portada principal" 
-        fill 
-        /* AQUÍ EL TRUCO: 
-           En móvil usamos 'object-[80%_center]' para ver a las personas (derecha).
-           En PC usamos 'md:object-center' para que se vea todo equilibrado.
-        */
-        className="object-cover object-[80%_center] md:object-center transition-all duration-500" 
-        priority 
+    <div className="relative w-full h-[60vh] min-h-[300px] bg-slate-100 flex items-center justify-center">
+      <Image
+        src={url}
+        alt="Portada principal"
+        fill
+        className="object-cover"
+        priority
       />
 
       {/* Capa oscura para que el texto blanco siempre se lea bien */}
@@ -34,7 +27,7 @@ export const HomeBanner = ({ url, title, subtitle }: BannerProps) => {
             {title}
           </h1>
         )}
-        
+
         {subtitle && (
           <p className="text-xs md:text-xl lg:text-2xl text-stone-200 drop-shadow-lg font-medium max-w-[240px] md:max-w-2xl text-balance">
             {subtitle}
@@ -42,5 +35,5 @@ export const HomeBanner = ({ url, title, subtitle }: BannerProps) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
