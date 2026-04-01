@@ -1,4 +1,8 @@
+'use client';
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { User as UserIcon, Eye, FileText, Map, ArrowRightLeft, LogOut } from "lucide-react";
 import type { User } from "../layout/Navbar";
 
 type UserMenuProps = {
@@ -11,113 +15,105 @@ type UserMenuProps = {
 };
 
 export default function UserMenu({
-  user,
   isPanelOpen,
   onTogglePanel,
   onClosePanel,
   onLogin,
   onOpenLogoutModal,
 }: UserMenuProps) {
+
+  // --- 🧪 SIMULADOR FRONTEND GLOBAL ---
+  const isAuthenticated = true; 
+  
+  // Estado reactivo para la cabecera
+  const [currentUser, setCurrentUser] = useState({
+    name: "Condesa",
+    email: "condesa@gmail.com",
+    avatarUrl: ""
+  });
+
+  // Efecto para escuchar cuando el Perfil guarda cambios
+  useEffect(() => {
+    const loadUserData = () => {
+      const storedData = localStorage.getItem('mockUserData');
+      if (storedData) {
+        setCurrentUser(JSON.parse(storedData));
+      }
+    };
+
+    loadUserData(); // Carga inicial
+
+    // Escuchamos el evento personalizado que disparará el ProfileCard
+    window.addEventListener('profileUpdated', loadUserData);
+    return () => window.removeEventListener('profileUpdated', loadUserData);
+  }, []);
+
+  const menuOptions = [
+    { name: "Mi cuenta", href: "/profile", icon: <UserIcon className="w-5 h-5" /> },
+    { name: "Propiedades vistas", href: "#", icon: <Eye className="w-5 h-5" /> },
+    { name: "Mis publicaciones", href: "#", icon: <FileText className="w-5 h-5" /> },
+    { name: "Mis zonas", href: "#", icon: <Map className="w-5 h-5" /> },
+    { name: "Mis comparaciones", href: "#", icon: <ArrowRightLeft className="w-5 h-5" /> },
+  ];
+
   return (
-    <>
+    <div className="relative">
       <button
         onClick={onTogglePanel}
-        className="p-2 text-gray-700 rounded-full hover:bg-black/5 hover:shadow-sm transition duration-200 focus:outline-none"
-        aria-label="Menú de usuario"
+        className="flex items-center gap-2 p-1.5 pr-3 text-stone-700 rounded-full hover:bg-stone-100 transition duration-200 focus:outline-none focus:ring-2 focus:ring-amber-600"
       >
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
+        <div className="w-9 h-9 bg-amber-600 text-white rounded-full flex items-center justify-center font-bold shadow-sm overflow-hidden border border-amber-700">
+          {isAuthenticated ? (
+            currentUser.avatarUrl ? (
+              <img src={currentUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              currentUser.name.charAt(0).toUpperCase()
+            )
+          ) : (
+            <UserIcon className="w-5 h-5" />
+          )}
+        </div>
+        {isAuthenticated && (
+          <span className="hidden sm:block font-medium text-sm uppercase">
+            Hola, {currentUser.name.split(' ')[0]}
+          </span>
+        )}
       </button>
 
       <div
-        className={`absolute right-0 mt-3 w-72 rounded-xl border border-gray-200 bg-[#F9F6EE] shadow-lg p-5 z-50 transition-all duration-200 ${
-          isPanelOpen
-            ? "opacity-100 translate-y-0 visible"
-            : "opacity-0 -translate-y-2 invisible pointer-events-none"
+        className={`absolute right-0 mt-3 w-[90vw] sm:w-72 max-h-[80vh] overflow-y-auto overscroll-contain rounded-xl border border-stone-200 bg-white shadow-xl z-50 transition-all duration-200 origin-top-right ${
+          isPanelOpen ? "opacity-100 scale-100 visible translate-y-0" : "opacity-0 scale-95 invisible -translate-y-2 pointer-events-none"
         }`}
       >
-        <div className="flex justify-between items-center mb-4 border-b border-gray-300 pb-2">
-          <span className="font-bold text-sm text-gray-900">
-            Bienvenido a PropBol
-          </span>
-          <button
-            onClick={onClosePanel}
-            className="text-gray-500 hover:text-black hover:bg-black/5 rounded px-2 py-1 transition"
-          >
-            ✕
-          </button>
-        </div>
-
-        {user ? (
-          <>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-white font-bold">
-                {user.name.charAt(0)}
+        {isAuthenticated ? (
+          <div className="flex flex-col w-full p-2">
+            <div className="flex justify-between items-center p-3 mb-1 border-b border-stone-100">
+              <div className="flex flex-col">
+                <span className="font-bold text-stone-900 text-sm uppercase">{currentUser.name}</span>
+                <span className="text-xs text-stone-500">{currentUser.email}</span>
               </div>
-
-              <div>
-                <p className="font-bold text-gray-800 text-sm">{user.name}</p>
-                <p className="text-xs text-gray-500">{user.email}</p>
-              </div>
+              <button onClick={onClosePanel} className="text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded p-1 transition">✕</button>
             </div>
-
-            <Link
-              href="/perfil"
-              className="flex justify-between w-full text-black font-bold mb-4 hover:bg-black/5 p-2 rounded transition text-sm"
-              onClick={onClosePanel}
-            >
-              Mi perfil <span>&gt;</span>
-            </Link>
-
-            <button
-              onClick={onOpenLogoutModal}
-              className="w-full bg-[#E68B25] text-white py-2 rounded-lg font-bold shadow-sm hover:bg-[#cf7b1f] transition text-sm"
-            >
-              Cerrar Sesión
-            </button>
-          </>
+            <div className="flex flex-col gap-1 mt-2">
+              {menuOptions.map((option, index) => (
+                <Link key={index} href={option.href} onClick={onClosePanel} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-stone-700 rounded-lg hover:bg-amber-50 hover:text-amber-700 transition-colors">
+                  <span className="text-stone-400 group-hover:text-amber-600">{option.icon}</span>
+                  {option.name}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-2 pt-2 border-t border-stone-100">
+              <button onClick={() => { onClosePanel(); onOpenLogoutModal(); }} className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                <LogOut className="w-5 h-5" /> Cerrar Sesión
+              </button>
+            </div>
+          </div>
         ) : (
-          <div className="text-center py-2 flex flex-col items-center">
-            <div className="w-12 h-12 bg-[#E68B25]/10 rounded-full flex items-center justify-center mb-3">
-              <svg
-                className="w-6 h-6 text-[#E68B25]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-5 px-2">
-              Encuentra tu hogar ideal hoy mismo.
-            </p>
-
-            <button
-              onClick={onLogin}
-              className="w-full bg-[#E68B25] text-white py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-[#cf7b1f] transition-all active:scale-95"
-            >
-              Ingresar / Registrarse
-            </button>
+          <div className="text-center p-5 flex flex-col items-center">
+             <p>Vista Visitante...</p>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
