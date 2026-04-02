@@ -298,7 +298,7 @@ export default function SignUpForm() {
 
     if (result?.error) {
       setGoogleError("Error en el registro con Google");
-      console.error("Google registration error:", result.error);
+      console.error("Google error de registro:", result.error);
     }
 
   };
