@@ -17,6 +17,7 @@ type AuthenticatedRequest = Request & {
   user?: {
     id?: number
     email?: string
+    correo?: string
   }
 }
 

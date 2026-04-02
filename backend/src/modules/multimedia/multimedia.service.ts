@@ -1,8 +1,10 @@
 import {
   ALLOWED_IMAGE_EXTENSIONS,
+  ALLOWED_VIDEO_EXTENSIONS,
   ALLOWED_YOUTUBE_HOSTS,
   MAX_IMAGE_SIZE_MB,
   MAX_IMAGES_PER_PUBLICATION,
+  MAX_VIDEO_SIZE_MB,
   MAX_VIDEOS_PER_PUBLICATION,
   MULTIMEDIA_TYPES
 } from './multimedia.constants.js'
@@ -15,6 +17,7 @@ import {
 import type {
   GetPublicationMultimediaInput,
   RegisterImagesInput,
+  RegisterVideoFileInput,
   RegisterVideoLinkInput
 } from './multimedia.types.js'
 
@@ -38,7 +41,10 @@ const isValidYoutubeUrl = (videoUrl: string): boolean => {
     }
 
     if (host === 'youtube.com' || host === 'www.youtube.com') {
-      return parsedUrl.searchParams.has('v') || parsedUrl.pathname.startsWith('/shorts/')
+      return (
+        parsedUrl.searchParams.has('v') ||
+        parsedUrl.pathname.startsWith('/shorts/')
+      )
     }
 
     return false
@@ -47,7 +53,10 @@ const isValidYoutubeUrl = (videoUrl: string): boolean => {
   }
 }
 
-const validatePublicationOwnership = async (publicacionId: number, usuarioId: number) => {
+const validatePublicationOwnership = async (
+  publicacionId: number,
+  usuarioId: number
+) => {
   validatePositiveInteger(publicacionId, 'ID de publicación')
   validatePositiveInteger(usuarioId, 'Usuario')
 
@@ -94,7 +103,11 @@ const validateImagesInput = (images: RegisterImagesInput['images']) => {
       throw new Error('Formato no permitido. Solo PNG, JPG o JPEG')
     }
 
-    if (typeof image.pesoMb !== 'number' || Number.isNaN(image.pesoMb) || image.pesoMb <= 0) {
+    if (
+      typeof image.pesoMb !== 'number' ||
+      Number.isNaN(image.pesoMb) ||
+      image.pesoMb <= 0
+    ) {
       throw new Error(`El tamaño de la imagen ${imageIndex} no es válido`)
     }
 
@@ -102,6 +115,38 @@ const validateImagesInput = (images: RegisterImagesInput['images']) => {
       throw new Error('La imagen supera el tamaño máximo permitido de 5 MB')
     }
   })
+}
+
+const validateVideoFileInput = (video: RegisterVideoFileInput['video']) => {
+  if (!video || typeof video !== 'object') {
+    throw new Error('Debe enviar la información del video')
+  }
+
+  if (typeof video.url !== 'string' || !video.url.trim()) {
+    throw new Error('La URL del video es obligatoria')
+  }
+
+  if (typeof video.extension !== 'string' || !video.extension.trim()) {
+    throw new Error('La extensión del video es obligatoria')
+  }
+
+  const normalizedExtension = video.extension.trim().toLowerCase()
+
+  if (!ALLOWED_VIDEO_EXTENSIONS.includes(normalizedExtension)) {
+    throw new Error('Formato no permitido. Solo MP4, MKV o AVI')
+  }
+
+  if (
+    typeof video.pesoMb !== 'number' ||
+    Number.isNaN(video.pesoMb) ||
+    video.pesoMb <= 0
+  ) {
+    throw new Error('El tamaño del video no es válido')
+  }
+
+  if (video.pesoMb > MAX_VIDEO_SIZE_MB) {
+    throw new Error('El video supera el tamaño máximo permitido de 20 MB')
+  }
 }
 
 export const getPublicationMultimediaService = async ({
@@ -188,5 +233,36 @@ export const registerImagesService = async ({
   return {
     publication,
     multimedia: createdImages
+  }
+}
+
+export const registerVideoFileService = async ({
+  publicacionId,
+  usuarioId,
+  video
+}: RegisterVideoFileInput) => {
+  const publication = await validatePublicationOwnership(publicacionId, usuarioId)
+
+  validateVideoFileInput(video)
+
+  const totalVideos = await countMultimediaByPublicationIdAndTypeRepository(
+    publicacionId,
+    MULTIMEDIA_TYPES.VIDEO
+  )
+
+  if (totalVideos >= MAX_VIDEOS_PER_PUBLICATION) {
+    throw new Error('Límite de videos alcanzado')
+  }
+
+  const createdVideo = await createMultimediaRepository({
+    publicacionId,
+    tipo: MULTIMEDIA_TYPES.VIDEO,
+    url: video.url.trim(),
+    pesoMb: video.pesoMb
+  })
+
+  return {
+    publication,
+    multimedia: createdVideo
   }
 }
