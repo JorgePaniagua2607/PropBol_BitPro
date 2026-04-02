@@ -2,12 +2,15 @@ import type { Request, Response } from 'express'
 import {
   getPublicationMultimediaService,
   registerImagesService,
+  registerVideoFileService,
   registerVideoLinkService
 } from './multimedia.service.js'
 import type {
   ImageUploadItemInput,
   RegisterImagesBody,
-  RegisterVideoLinkBody
+  RegisterVideoFileBody,
+  RegisterVideoLinkBody,
+  VideoUploadItemInput
 } from './multimedia.types.js'
 
 type AuthenticatedRequest = Request & {
@@ -51,13 +54,17 @@ const getErrorStatus = (message: string): number => {
 }
 
 const handleControllerError = (error: unknown, res: Response) => {
-  const message = error instanceof Error ? error.message : 'Error interno del servidor'
+  const message =
+    error instanceof Error ? error.message : 'Error interno del servidor'
 
   const status = getErrorStatus(message)
   res.status(status).json({ message })
 }
 
-export const getPublicationMultimediaController = async (req: Request, res: Response) => {
+export const getPublicationMultimediaController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const publicacionId = parsePublicacionId(req)
     const usuarioId = getAuthenticatedUserId(req as AuthenticatedRequest)
@@ -76,7 +83,10 @@ export const getPublicationMultimediaController = async (req: Request, res: Resp
   }
 }
 
-export const registerVideoLinkController = async (req: Request, res: Response) => {
+export const registerVideoLinkController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const publicacionId = parsePublicacionId(req)
     const usuarioId = getAuthenticatedUserId(req as AuthenticatedRequest)
@@ -97,13 +107,18 @@ export const registerVideoLinkController = async (req: Request, res: Response) =
   }
 }
 
-export const registerImagesController = async (req: Request, res: Response) => {
+export const registerImagesController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const publicacionId = parsePublicacionId(req)
     const usuarioId = getAuthenticatedUserId(req as AuthenticatedRequest)
     const { images } = req.body as Partial<RegisterImagesBody>
 
-    const normalizedImages: ImageUploadItemInput[] = Array.isArray(images) ? images : []
+    const normalizedImages: ImageUploadItemInput[] = Array.isArray(images)
+      ? images
+      : []
 
     const result = await registerImagesService({
       publicacionId,
@@ -113,6 +128,44 @@ export const registerImagesController = async (req: Request, res: Response) => {
 
     res.status(201).json({
       message: 'Imágenes registradas correctamente',
+      data: result
+    })
+  } catch (error) {
+    handleControllerError(error, res)
+  }
+}
+
+export const registerVideoFileController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const publicacionId = parsePublicacionId(req)
+    const usuarioId = getAuthenticatedUserId(req as AuthenticatedRequest)
+    const { video } = req.body as Partial<RegisterVideoFileBody>
+
+    const normalizedVideo: VideoUploadItemInput =
+      video && typeof video === 'object'
+        ? {
+            url: typeof video.url === 'string' ? video.url : '',
+            extension:
+              typeof video.extension === 'string' ? video.extension : '',
+            pesoMb: typeof video.pesoMb === 'number' ? video.pesoMb : 0
+          }
+        : {
+            url: '',
+            extension: '',
+            pesoMb: 0
+          }
+
+    const result = await registerVideoFileService({
+      publicacionId,
+      usuarioId,
+      video: normalizedVideo
+    })
+
+    res.status(201).json({
+      message: 'Video subido correctamente',
       data: result
     })
   } catch (error) {
