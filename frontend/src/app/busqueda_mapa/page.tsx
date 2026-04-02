@@ -1,32 +1,68 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, ChevronRight, List as ListIcon, LayoutGrid } from 'lucide-react'
-
-// === HOOKS (Lógica Backend de tu compañero) ===
 import { useProperties } from '@/hooks/useProperties'
-
-// === COMPONENTES (Tu diseño Frontend) ===
-import FilterBar from '@/components/FilterBar' 
-import PropertyCard from '@/components/layout/PropertyCard'
+import { usePropertySearch } from '@/hooks/usePropertySearch'
+import FilterBar from '@/components/filters/FilterBar'
 import PropertyRow from '@/components/galeria/PropertyRow'
 import EmptyState from '@/components/galeria/EmptyState'
+import type { PropertyMapPin, PropertyType } from '@/types/property'
 
-// Carga dinámica del mapa para evitar errores de SSR en Next.js
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
+function mapCategoriaToTipo(raw: unknown): PropertyType {
+  const s = String(raw ?? '').toUpperCase()
+  if (s.includes('DEPART')) return 'departamento'
+  if (s.includes('TERREN')) return 'terreno'
+  if (s.includes('LOCAL') || s.includes('OFICIN')) return 'local'
+  return 'casa'
+}
+
+function normalizeToMapPins(raw: unknown): PropertyMapPin[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  return raw.map((item: Record<string, unknown>, i: number) => ({
+    id: String(item.id ?? i),
+    lat: Number(item.lat ?? item.latitud ?? -17.392418841841394),
+    lng: Number(item.lng ?? item.longitud ?? -66.1461583463333),
+    price: Number(item.price ?? item.precio ?? 0),
+    currency:
+      item.currency === 'BOB' || item.moneda === 'BOB' ? 'BOB' : 'USD',
+    type: mapCategoriaToTipo(item.categoria ?? item.type ?? item.tipo),
+    title: String(item.title ?? item.titulo ?? 'Sin título'),
+    thumbnailUrl:
+      typeof item.thumbnailUrl === 'string'
+        ? item.thumbnailUrl
+        : typeof item.imagen === 'string'
+          ? item.imagen
+          : undefined
+  }))
+}
+
 export default function BusquedaMapaPage() {
-  // Estados de UI (Frontend)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-
-  // Estados de Lógica (Backend / Mapas)
-  const { properties, isLoading } = useProperties()
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
+    null
+  )
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
-  // Efecto original del equipo de mapas: Retraso sutil al hacer hover para no saturar el mapa
+  const { properties, isLoading, error: propertiesError } = useProperties()
+  const { data, loading, searchProperties } = usePropertySearch()
+
+  const displayProperties = useMemo(
+    () => normalizeToMapPins(data) ?? properties,
+    [data, properties]
+  )
+
+  const listLoading = isLoading || loading
+  const combinedError = propertiesError
+
+  useEffect(() => {
+    void searchProperties()
+  }, [searchProperties])
+
   useEffect(() => {
     if (!hoveredId) return
     const timeout = setTimeout(() => {
@@ -36,16 +72,17 @@ export default function BusquedaMapaPage() {
   }, [hoveredId])
 
   return (
-    // Contenedor principal con h-screen y overflow-hidden para evitar scroll global
     <div className="flex flex-col h-screen bg-white overflow-hidden">
-      
-      {/* 1. BARRA DE FILTROS SUPERIOR (Tu componente limpio) */}
-      <FilterBar />
+      <div className="shrink-0">
+        <FilterBar />
+        {loading && (
+          <div className="px-4 py-1 text-xs text-orange-500 animate-pulse font-medium border-b border-stone-100 bg-stone-50">
+            Actualizando resultados según filtros guardados…
+          </div>
+        )}
+      </div>
 
-      {/* 2. ÁREA CENTRAL (Lista + Mapa) */}
       <main className="flex flex-1 overflow-hidden relative">
-        
-        {/* PANEL LATERAL COLAPSABLE */}
         <aside
           className={`bg-white border-r border-stone-200 flex flex-col z-10 transition-all duration-300 ${
             isSidebarOpen ? 'w-full md:w-[450px]' : 'w-0'
@@ -53,9 +90,9 @@ export default function BusquedaMapaPage() {
         >
           {isSidebarOpen && (
             <>
-              {/* Botón de ocultar Panel */}
               <div className="p-3 border-b border-stone-200 flex items-center bg-stone-50 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setIsSidebarOpen(false)}
                   className="flex items-center text-xs font-medium text-stone-500 hover:text-stone-700 transition-colors"
                 >
@@ -63,29 +100,36 @@ export default function BusquedaMapaPage() {
                 </button>
               </div>
 
-              {/* Cabecera de la Lista (Resultados y Toggle de vistas) */}
               <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-white shrink-0">
                 <div className="flex flex-col">
-                  <h2 className="text-xl font-bold text-slate-900">Lista de Inmuebles</h2>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Lista de Inmuebles
+                  </h2>
                   <p className="text-xs text-stone-400 font-medium mt-0.5">
-                    {properties.length} encontrado{properties.length !== 1 ? 's' : ''}
+                    {displayProperties.length} encontrado
+                    {displayProperties.length !== 1 ? 's' : ''}
                   </p>
                 </div>
 
-                {/* Se mantiene este toggle aquí para controlar el state 'viewMode' directamente */}
                 <div className="flex bg-stone-100 p-1 rounded-md border border-stone-200 shadow-inner">
                   <button
+                    type="button"
                     onClick={() => setViewMode('grid')}
                     className={`p-1.5 rounded transition-colors ${
-                      viewMode === 'grid' ? 'bg-white text-[#ea580c] shadow-sm' : 'text-stone-400 hover:text-stone-600'
+                      viewMode === 'grid'
+                        ? 'bg-white text-[#ea580c] shadow-sm'
+                        : 'text-stone-400 hover:text-stone-600'
                     }`}
                   >
                     <LayoutGrid size={18} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setViewMode('list')}
                     className={`p-1.5 rounded transition-colors ${
-                      viewMode === 'list' ? 'bg-white text-[#ea580c] shadow-sm' : 'text-stone-400 hover:text-stone-600'
+                      viewMode === 'list'
+                        ? 'bg-white text-[#ea580c] shadow-sm'
+                        : 'text-stone-400 hover:text-stone-600'
                     }`}
                   >
                     <ListIcon size={18} />
@@ -93,13 +137,12 @@ export default function BusquedaMapaPage() {
                 </div>
               </div>
 
-              {/* CONTENIDO SCROLLEABLE (Aquí solucionamos el problema de que se iba hasta abajo) */}
               <div className="flex-1 overflow-y-auto p-4 bg-stone-50 no-scrollbar">
-                {isLoading ? (
+                {listLoading ? (
                   <div className="flex justify-center items-center h-full text-stone-500 text-sm font-medium animate-pulse">
-                    Cargando propiedades de la base de datos...
+                    Cargando propiedades…
                   </div>
-                ) : properties.length === 0 ? (
+                ) : displayProperties.length === 0 ? (
                   <EmptyState />
                 ) : (
                   <div
@@ -109,43 +152,33 @@ export default function BusquedaMapaPage() {
                         : 'divide-y divide-gray-100 flex flex-col bg-white border border-gray-100 rounded-xl shadow-sm'
                     }`}
                   >
-                    {/* Renderizamos las propiedades del BACKEND en tus componentes de FRONTEND */}
-                    {properties.map((property) => {
+                    {displayProperties.map((property) => {
                       const isSelected = selectedPropertyId === property.id
+                      const priceLabel =
+                        property.currency === 'USD'
+                          ? `$${property.price.toLocaleString('es-BO')} USD`
+                          : `Bs ${property.price.toLocaleString('es-BO')}`
 
                       return (
                         <div
                           key={property.id}
                           onMouseEnter={() => setHoveredId(property.id)}
                           onClick={() => setSelectedPropertyId(property.id)}
-                          // El div reacciona si el pin del mapa está seleccionado
                           className={`cursor-pointer transition-all duration-200 rounded-xl ${
                             viewMode === 'list' ? 'py-1 px-2' : ''
                           } ${
                             isSelected
-                              ? 'ring-2 ring-[#ea580c] shadow-md bg-orange-50/50' // Highlight si está seleccionado
+                              ? 'ring-2 ring-[#ea580c] shadow-md bg-orange-50/50'
                               : 'hover:border-stone-300 hover:shadow-sm'
-                          }`}
+                          } ${viewMode === 'grid' ? 'bg-white border border-stone-100 p-3 shadow-sm' : ''}`}
                         >
-                          {viewMode === 'grid' ? (
-                            <PropertyCard
-                              imagen="" // Mandamos vacío para que active tu COLOR_GRIS_PLACEHOLDER
-                              estado={property.type} // casa, terreno, etc.
-                              precio={property.currency === 'USD' ? `$${property.price.toLocaleString("es-BO")} USD` : `Bs ${property.price.toLocaleString("es-BO")}`}
-                              descripcion={property.title}
-                              camas={3} // Mockeado porque PropertyMapPin no trae este dato
-                              banos={2} // Mockeado
-                              metros={150} // Mockeado
-                            />
-                          ) : (
-                            <PropertyRow
-                              title={property.title}
-                              price={property.currency === 'USD' ? `$${property.price.toLocaleString("es-BO")} USD` : `Bs ${property.price.toLocaleString("es-BO")}`}
-                              size="3 Dorm. • 150 m²"
-                              contactType="whatsapp"
-                              image=""
-                            />
-                          )}
+                          <PropertyRow
+                            title={property.title}
+                            price={priceLabel}
+                            size={`${property.type} • mapa`}
+                            contactType="whatsapp"
+                            image={property.thumbnailUrl ?? ''}
+                          />
                         </div>
                       )
                     })}
@@ -156,10 +189,10 @@ export default function BusquedaMapaPage() {
           )}
         </aside>
 
-        {/* ÁREA DEL MAPA */}
         <section className="flex-1 relative bg-stone-200">
           {!isSidebarOpen && (
             <button
+              type="button"
               onClick={() => setIsSidebarOpen(true)}
               className="absolute left-0 top-4 z-[1000] bg-white text-black shadow-md rounded-r-md flex flex-col items-center py-4 px-2 gap-4 hover:bg-stone-50 transition-colors"
             >
@@ -173,9 +206,11 @@ export default function BusquedaMapaPage() {
 
           <div className="absolute inset-0">
             <MapView
-              properties={properties} 
+              properties={displayProperties}
               selectedId={selectedPropertyId}
               onSelect={setSelectedPropertyId}
+              isLoading={listLoading}
+              error={combinedError}
             />
           </div>
         </section>
