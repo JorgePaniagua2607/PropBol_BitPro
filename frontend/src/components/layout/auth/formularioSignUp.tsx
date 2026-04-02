@@ -107,6 +107,7 @@ export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [googleError, setGoogleError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onlyLettersRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
@@ -144,7 +145,6 @@ export default function SignUpForm() {
     if (!onlyLettersRegex.test(value)) {
       return "El apellido solo puede contener letras";
     }
-
     return undefined;
   };
 
@@ -289,6 +289,20 @@ export default function SignUpForm() {
     setIsSubmitting(false);
     router.push("/");
   };
+
+  import { signIn } from "next-auth/react";
+  const handleGoogleRegister = async() => {
+    setGoogleError("");
+
+    const result = await signIn("google", { redirect: false });
+
+    if (result?.error) {
+      setGoogleError("Error en el registro con Google");
+      console.error("Google registration error:", result.error);
+    }
+
+  };
+
 
   const isFormValid = useMemo(() => {
     const requiredFieldsCompleted =
@@ -639,11 +653,13 @@ export default function SignUpForm() {
 
           <button
             type="button"
+            onClick={handleGoogleRegister}
             className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
           <span className="text-base font-bold">G</span>
             Continuar con Google
           </button>
+          {googleError && (<p className="mt-2 text-sm text-red-600">{googleError}</p>)}
 
             <button
               type="button"
