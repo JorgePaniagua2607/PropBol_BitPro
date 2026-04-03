@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { usePropertySearch } from '@/hooks/usePropertySearch'
 
-const MapView = dynamic(() => import('./MapView'), { ssr: false })
+const MapView = dynamic(() => import('./MapView'), { 
+  ssr: false, 
+  loading: () => <div className="h-full w-full bg-stone-100 animate-pulse" />
+})
 
 export default function BusquedaMapaPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
