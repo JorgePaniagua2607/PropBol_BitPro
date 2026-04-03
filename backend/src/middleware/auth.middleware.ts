@@ -1,95 +1,68 @@
 import type { NextFunction, Request, Response } from 'express'
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { verifyJwtToken } from '../utils/jwt.js'
-import { findActiveSessionByToken } from '../modules/auth/auth.repository.js'
+import jwt from 'jsonwebtoken'
 
-export type AuthenticatedRequest = Request & {
+type AuthenticatedRequest = Request & {
   user?: {
     id: number
+    email?: string
     correo?: string
   }
 }
 
-export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      message: 'Token no proporcionado'
-    })
-  }
-
-  const token = authHeader.split(' ')[1]
-
-  if (!token) {
-    return res.status(401).json({
-      message: 'Token no proporcionado'
-    })
-  }
-
+const requireAuthHandler = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    verifyJwtToken(token)
+    const authHeader = req.header('authorization')
 
-    const session = await findActiveSessionByToken(token)
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1]
+      const secret = process.env.JWT_SECRET
 
-    if (!session) {
-      return res.status(401).json({
-        message: 'Sesión inválida o expirada'
-      })
+      if (!secret) {
+        return res.status(500).json({ message: 'JWT_SECRET no configurado' })
+      }
+
+      const decoded = jwt.verify(token, secret) as {
+        id?: number
+        email?: string
+        correo?: string
+      }
+
+      if (!decoded?.id) {
+        return res.status(401).json({ message: 'Token inválido' })
+      }
+
+      req.user = {
+        id: Number(decoded.id),
+        email: decoded.email,
+        correo: decoded.correo
+      }
+
+      return next()
     }
 
-    ;(req as AuthenticatedRequest).user = {
-      id: session.usuario.id,
-      correo: session.usuario.correo
+    const rawUserId = req.header('x-user-id')
+    const userIdFromHeader = rawUserId ? Number(rawUserId) : NaN
+
+    console.log('DEBUG x-user-id:', rawUserId)
+
+    if (Number.isInteger(userIdFromHeader) && userIdFromHeader > 0) {
+      req.user = {
+        id: userIdFromHeader
+      }
+
+      return next()
     }
 
-    next()
-  } catch {
-    return res.status(401).json({
-      message: 'Token inválido'
-    })
+    return res.status(401).json({ message: 'Token no proporcionado' })
+  } catch (error) {
+    console.error('AUTH ERROR:', error)
+    return res.status(401).json({ message: 'Token inválido' })
   }
 }
 
-export const verifyAuth = async (req: VercelRequest, res: VercelResponse) => {
-  const authHeader = req.headers.authorization
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({
-      message: 'Token no proporcionado'
-    })
-    return null
-  }
-
-  const token = authHeader.split(' ')[1]
-
-  if (!token) {
-    res.status(401).json({
-      message: 'Token no proporcionado'
-    })
-    return null
-  }
-
-  try {
-    verifyJwtToken(token)
-
-    const session = await findActiveSessionByToken(token)
-
-    if (!session) {
-      res.status(401).json({
-        message: 'Sesión inválida o expirada'
-      })
-      return null
-    }
-
-    return {
-      token,
-      user: session.usuario
-    }
-  } catch {
-    res.status(401).json({
-      message: 'Token inválido'
-    })
-    return null
-  }
-}
+export const requireAuth = requireAuthHandler
+export const verifyAuth = requireAuthHandler

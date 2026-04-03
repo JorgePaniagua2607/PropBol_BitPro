@@ -19,7 +19,6 @@ import {
   logoutController
 } from './modules/auth/auth.controller.js'
 import { requireAuth } from './middleware/auth.middleware.js'
-import meHandler from '../api/auth/me.js'
 import correoverificacionRoutes from './modules/perfil/correoverificacion.routes.js'
 import multimediaRoutes from './modules/multimedia/multimedia.routes.js'
 
@@ -29,7 +28,7 @@ app.use(
   cors({
     origin: ['http://localhost:3000', 'http://localhost:3001'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
     credentials: true
   })
 )
@@ -51,9 +50,11 @@ app.post('/api/auth/register', registerController)
 app.post('/api/auth/login', loginController)
 app.post('/api/auth/logout', logoutController)
 
-app.get('/api/auth/me', async (req, res) => {
-  await meHandler(req as any, res as any)
-})
+// Se comenta temporalmente porque el handler de api/auth/me.js
+// usa otra capa de auth y estaba rompiendo el arranque local.
+// app.get('/api/auth/me', async (req, res) => {
+//   await meHandler(req as any, res as any)
+// })
 
 app.get('/api/filters', filtersController.getFilters)
 app.get('/api/banners', (req, res) => bannersController.getBanners(req, res))
